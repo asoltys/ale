@@ -99,13 +99,12 @@ function! ale#fixers#prettier#ApplyFixForVersion(buffer, version) abort
     endif
 
     let l:result = {
-        \   'command': l:executable
-        \       . ' %t'
-        \       . (!empty(l:options) ? ' ' . l:options : '')
-        \       . ' --write',
-        \   'read_temporary_file': 1,
-        \}
+    \   'command': l:executable
+    \       . ' %t'
+    \       . (!empty(l:options) ? ' ' . l:options : '')
+    \       . ' --write',
+    \   'read_temporary_file': 1,
+    \}
 
-    echo string(l:result)
     return l:result
 endfunction
