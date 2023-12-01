@@ -8,6 +8,7 @@ call ale#Set('javascript_prettier_options', '')
 
 function! ale#fixers#prettier#GetExecutable(buffer) abort
     return ale#path#FindExecutable(a:buffer, 'javascript_prettier', [
+    \   'node_modules/.bin/biome',
     \   'node_modules/.bin/prettier_d',
     \   'node_modules/prettier-cli/index.js',
     \   'node_modules/.bin/prettier',
@@ -45,6 +46,10 @@ function! ale#fixers#prettier#ApplyFixForVersion(buffer, version) abort
     let l:executable = ale#fixers#prettier#GetExecutable(a:buffer)
     let l:options = ale#Var(a:buffer, 'javascript_prettier_options')
     let l:parser = ''
+
+    if match(l:executable, "biome") > 0
+        let l:executable .= " format"
+    endif
 
     let l:filetypes = split(getbufvar(a:buffer, '&filetype'), '\.')
 
@@ -93,32 +98,14 @@ function! ale#fixers#prettier#ApplyFixForVersion(buffer, version) abort
         let l:options = (!empty(l:options) ? l:options . ' ' : '') . '--parser ' . l:parser
     endif
 
-    " Special error handling needed for prettier_d
-    if l:executable =~# 'prettier_d$'
-        return {
-        \   'cwd': '%s:h',
-        \   'command':ale#Escape(l:executable)
+    let l:result = {
+        \   'command': l:executable
+        \       . ' %t'
         \       . (!empty(l:options) ? ' ' . l:options : '')
-        \       . ' --stdin-filepath %s --stdin',
-        \   'process_with': 'ale#fixers#prettier#ProcessPrettierDOutput',
+        \       . ' --write',
+        \   'read_temporary_file': 1,
         \}
-    endif
 
-    " 1.4.0 is the first version with --stdin-filepath
-    if ale#semver#GTE(a:version, [1, 4, 0])
-        return {
-        \   'cwd': ale#fixers#prettier#GetCwd(a:buffer),
-        \   'command': ale#Escape(l:executable)
-        \       . (!empty(l:options) ? ' ' . l:options : '')
-        \       . ' --stdin-filepath %s --stdin',
-        \}
-    endif
-
-    return {
-    \   'command': ale#Escape(l:executable)
-    \       . ' %t'
-    \       . (!empty(l:options) ? ' ' . l:options : '')
-    \       . ' --write',
-    \   'read_temporary_file': 1,
-    \}
+    echo string(l:result)
+    return l:result
 endfunction
