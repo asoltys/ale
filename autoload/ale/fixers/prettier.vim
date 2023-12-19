@@ -47,10 +47,6 @@ function! ale#fixers#prettier#ApplyFixForVersion(buffer, version) abort
     let l:options = ale#Var(a:buffer, 'javascript_prettier_options')
     let l:parser = ''
 
-    if match(l:executable, "biome") > 0
-        let l:executable .= " format"
-    endif
-
     let l:filetypes = split(getbufvar(a:buffer, '&filetype'), '\.')
 
     if index(l:filetypes, 'handlebars') > -1
@@ -98,13 +94,40 @@ function! ale#fixers#prettier#ApplyFixForVersion(buffer, version) abort
         let l:options = (!empty(l:options) ? l:options . ' ' : '') . '--parser ' . l:parser
     endif
 
-    let l:result = {
-    \   'command': l:executable
+
+    if match(l:executable, "biome") > 0
+        return {
+        \   'command': l:executable . ' format %t --write',
+        \   'read_temporary_file': 1,
+        \}
+    endif
+
+    " Special error handling needed for prettier_d
+    if l:executable =~# 'prettier_d$'
+        return {
+        \   'cwd': '%s:h',
+        \   'command':ale#Escape(l:executable)
+        \       . (!empty(l:options) ? ' ' . l:options : '')
+        \       . ' --stdin-filepath %s --stdin',
+        \   'process_with': 'ale#fixers#prettier#ProcessPrettierDOutput',
+        \}
+    endif
+
+    " 1.4.0 is the first version with --stdin-filepath
+    if ale#semver#GTE(a:version, [1, 4, 0])
+        return {
+        \   'cwd': ale#fixers#prettier#GetCwd(a:buffer),
+        \   'command': ale#Escape(l:executable)
+        \       . (!empty(l:options) ? ' ' . l:options : '')
+        \       . ' --stdin-filepath %s --stdin',
+        \}
+    endif
+
+    return {
+    \   'command': ale#Escape(l:executable)
     \       . ' %t'
     \       . (!empty(l:options) ? ' ' . l:options : '')
     \       . ' --write',
     \   'read_temporary_file': 1,
     \}
-
-    return l:result
 endfunction
